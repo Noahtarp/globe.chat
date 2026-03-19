@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>globe chat</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#1a0a2e;--bg2:#120820;--surface:#22103a;--surface2:#2a1445;
+  --border:#3d1f6e;--border2:#5a2fa0;
+  --accent:#9b59f5;--accent2:#c084fc;--glow:rgba(155,89,245,0.35);
+  --fg:#f0e8ff;--fg2:#a890cc;--fg3:#6b4f8a;
+  --red:#f04060;--green:#34d399;--amber:#f59e0b;
+  --r:10px;--rp:20px;
+}
+html,body{height:100%;}
+body{font-family:'Satoshi',sans-serif;background:var(--bg2);color:var(--fg);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+.screen{display:none;}
+.screen.active{display:flex;}
+
+/* bg icons */
+.bg-icons{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.bg-icon{position:absolute;opacity:0.055;color:var(--accent2);transform-origin:center;animation:floatIcon 20s ease-in-out infinite;filter:blur(0.5px);}
+@keyframes floatIcon{0%,100%{transform:translateY(0) rotate(var(--rot));}50%{transform:translateY(-12px) rotate(calc(var(--rot) + 8deg));}}
+
+/* nav */
+.nav{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;padding:0.9rem 2.5rem;background:rgba(18,8,32,0.7);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);z-index:100;gap:1rem;}
+.nav-logo{font-weight:900;font-size:1.15rem;color:var(--fg);letter-spacing:-0.02em;text-transform:lowercase;display:flex;align-items:center;gap:0.3rem;cursor:pointer;}
+.nav-logo span{color:var(--accent);}
+.nav-r{display:flex;gap:0.75rem;margin-left:auto;align-items:center;}
+.nav-ghost{padding:0.42rem 1rem;border:1px solid var(--border2);border-radius:var(--rp);background:transparent;font-family:'Satoshi',sans-serif;font-size:0.82rem;color:var(--fg2);cursor:pointer;text-transform:lowercase;transition:color 0.15s,border-color 0.15s;}
+.nav-ghost:hover{color:var(--fg);border-color:var(--accent);}
+.nav-btn{padding:0.42rem 1.1rem;background:var(--accent);color:#fff;border:none;border-radius:var(--rp);font-family:'Satoshi',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;text-transform:lowercase;transition:opacity 0.15s,box-shadow 0.15s;box-shadow:0 0 14px var(--glow);}
+.nav-btn:hover{opacity:0.88;box-shadow:0 0 24px var(--glow);}
+
+/* ── auth screens (login / register) ── */
+#auth{min-height:100vh;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;gap:1.5rem;position:relative;z-index:1;}
+
+.auth-hero{display:flex;flex-direction:column;align-items:center;gap:0.75rem;text-align:center;margin-top:3.5rem;}
+.auth-hero h1{font-size:clamp(1.8rem,4.5vw,3rem);font-weight:900;letter-spacing:-0.03em;line-height:1.1;text-transform:lowercase;}
+.auth-hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.auth-hero p{color:var(--fg2);font-size:0.9rem;max-width:440px;text-transform:lowercase;}
+
+.auth-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;display:flex;flex-direction:column;gap:1rem;box-shadow:0 0 40px rgba(155,89,245,0.08),0 20px 60px rgba(0,0,0,0.5);position:relative;z-index:1;}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:0.5rem;}
+.auth-tab{flex:1;padding:0.55rem;text-align:center;font-size:0.82rem;font-weight:600;color:var(--fg3);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;text-transform:lowercase;}
+.auth-tab.on{color:var(--accent2);border-bottom-color:var(--accent);}
+
+.auth-panel{display:none;flex-direction:column;gap:0.9rem;}
+.auth-panel.on{display:flex;}
+
+.field{display:flex;flex-direction:column;gap:0.32rem;}
+.field label{font-size:0.72rem;font-weight:500;color:var(--fg2);text-transform:lowercase;}
+.field input{width:100%;padding:0.62rem 0.82rem;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--fg);font-family:'Satoshi',sans-serif;font-size:0.875rem;outline:none;transition:border-color 0.15s,box-shadow 0.15s;}
+.field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(155,89,245,0.15);}
+.field input::placeholder{color:var(--fg3);}
+.field-hint{font-size:0.68rem;color:var(--fg3);text-transform:lowercase;}
+
+.auth-btn{width:100%;padding:0.72rem;background:var(--accent);color:#fff;border:none;border-radius:var(--rp);font-family:'Satoshi',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;transition:opacity 0.15s,box-shadow 0.15s;text-transform:lowercase;box-shadow:0 0 18px var(--glow);position:relative;}
+.auth-btn:hover:not(:disabled){opacity:0.88;box-shadow:0 0 28px var(--glow);}
+.auth-btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+.auth-msg{font-size:0.78rem;padding:0.6rem 0.8rem;border-radius:var(--r);text-align:center;text-transform:lowercase;display:none;}
+.auth-msg.err{background:rgba(240,64,96,0.1);border:1px solid rgba(240,64,96,0.3);color:var(--red);}
+.auth-msg.ok{background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);color:var(--green);}
+.auth-msg.show{display:block;}
+
+.auth-link{font-size:0.72rem;color:var(--fg3);text-align:center;text-transform:lowercase;}
+.auth-link a{color:var(--accent2);text-decoration:none;cursor:pointer;}
+.auth-link a:hover{text-decoration:underline;}
+
+/* verify pending screen */
+#verify-pending{min-height:100vh;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center;position:relative;z-index:1;}
+.vp-icon{font-size:3.5rem;margin-bottom:0.5rem;}
+.vp-title{font-size:1.4rem;font-weight:900;text-transform:lowercase;letter-spacing:-0.02em;}
+.vp-sub{color:var(--fg2);font-size:0.85rem;max-width:340px;text-transform:lowercase;line-height:1.6;}
+.vp-email{color:var(--accent2);font-weight:600;}
+
+/* ── lobby (after login) ── */
+#lobby{min-height:100vh;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;gap:2rem;position:relative;z-index:1;}
+.lobby-hero{display:flex;flex-direction:column;align-items:center;gap:0.75rem;text-align:center;margin-top:4rem;}
+.lobby-hero h1{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:900;letter-spacing:-0.03em;line-height:1.1;text-transform:lowercase;}
+.lobby-hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.lobby-hero p{color:var(--fg2);font-size:0.88rem;max-width:440px;text-transform:lowercase;}
+
+.lcard{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.75rem;display:flex;flex-direction:column;gap:1rem;box-shadow:0 0 40px rgba(155,89,245,0.08),0 20px 60px rgba(0,0,0,0.5);position:relative;z-index:1;}
+.lcard-title{font-size:0.7rem;font-weight:600;text-transform:lowercase;letter-spacing:0.08em;color:var(--fg3);}
+.sel-wrap{position:relative;}
+.sel-wrap select{width:100%;padding:0.62rem 0.82rem;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--fg);font-family:'Satoshi',sans-serif;font-size:0.875rem;outline:none;transition:border-color 0.15s,box-shadow 0.15s;-webkit-appearance:none;appearance:none;text-transform:lowercase;}
+.sel-wrap select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(155,89,245,0.15);}
+.sel-wrap select option{background:var(--surface2);color:var(--fg);}
+.sel-wrap::after{content:'↓';position:absolute;right:0.8rem;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--fg3);font-size:0.7rem;}
+
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;}
+.mode{border:1px solid var(--border);border-radius:var(--r);padding:0.72rem 0.65rem;cursor:pointer;transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;display:flex;flex-direction:column;gap:0.15rem;background:var(--surface2);user-select:none;}
+.mode:hover{border-color:var(--border2);}
+.mode.sel{border-color:var(--accent);background:rgba(155,89,245,0.15);box-shadow:0 0 0 1px var(--accent),0 0 12px var(--glow);}
+.mt{font-size:0.78rem;font-weight:600;text-transform:lowercase;color:var(--fg);}
+.ms{font-size:0.67rem;color:var(--fg3);text-transform:lowercase;}
+.mode.sel .mt{color:var(--accent2);}
+
+.btn-join{width:100%;padding:0.72rem;background:var(--accent);color:#fff;border:none;border-radius:var(--rp);font-family:'Satoshi',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;transition:opacity 0.15s,box-shadow 0.15s;text-transform:lowercase;box-shadow:0 0 18px var(--glow);}
+.btn-join:hover{opacity:0.88;box-shadow:0 0 28px var(--glow);}
+.note{font-size:0.68rem;color:var(--fg3);text-align:center;text-transform:lowercase;}
+
+/* ── banned ── */
+#banned{min-height:100vh;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center;position:relative;z-index:1;}
+.ban-icon{font-size:3rem;}
+.ban-title{font-size:1.2rem;font-weight:700;color:var(--red);text-transform:lowercase;}
+.ban-sub{color:var(--fg2);font-size:0.82rem;max-width:300px;text-transform:lowercase;}
+.ban-cd{font-size:2.8rem;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-0.03em;color:var(--accent2);text-shadow:0 0 20px var(--glow);}
+.btn-sm{padding:0.5rem 1.2rem;border:1px solid var(--border2);border-radius:var(--rp);background:transparent;font-family:'Satoshi',sans-serif;font-size:0.8rem;color:var(--fg2);cursor:pointer;text-transform:lowercase;transition:color 0.12s,border-color 0.12s;}
+.btn-sm:hover{color:var(--fg);border-color:var(--accent);}
+
+/* ── chat ── */
+#chat{height:100vh;flex-direction:column;overflow:hidden;position:relative;z-index:1;}
+.topbar{display:flex;align-items:center;gap:0.6rem;padding:0.65rem 1.25rem;border-bottom:1px solid var(--border);background:rgba(18,8,32,0.85);backdrop-filter:blur(16px);flex-shrink:0;z-index:10;}
+.topbar-logo{font-weight:900;font-size:0.95rem;color:var(--fg);text-transform:lowercase;letter-spacing:-0.01em;cursor:pointer;}
+.topbar-logo span{color:var(--accent);}
+.topbar-div{color:var(--fg3);}
+.chip{display:flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:var(--fg2);background:var(--surface);border:1px solid var(--border);border-radius:var(--rp);padding:0.2rem 0.62rem;text-transform:lowercase;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 6px var(--green);}
+.tr{margin-left:auto;display:flex;align-items:center;gap:0.4rem;}
+.btn-leave{padding:0.3rem 0.72rem;border:1px solid var(--border);border-radius:var(--rp);background:transparent;font-family:'Satoshi',sans-serif;font-size:0.75rem;color:var(--fg2);cursor:pointer;text-transform:lowercase;transition:color 0.12s,border-color 0.12s;}
+.btn-leave:hover{color:var(--fg);border-color:var(--accent);}
+
+.cbody{display:flex;flex:1;overflow:hidden;min-height:0;}
+.sidebar{width:215px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;background:rgba(18,8,32,0.7);backdrop-filter:blur(8px);}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);}
+.sb-sec{padding:0.85rem 0.72rem;border-bottom:1px solid var(--border);}
+.sb-label{font-size:0.62rem;font-weight:600;color:var(--fg3);text-transform:lowercase;letter-spacing:0.08em;margin-bottom:0.5rem;}
+.room-row{display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.58rem;border-radius:8px;cursor:pointer;font-size:0.8rem;color:var(--fg2);text-transform:lowercase;transition:background 0.1s,color 0.1s;}
+.room-row:hover{background:var(--surface2);color:var(--fg);}
+.room-row.on{background:rgba(155,89,245,0.18);color:var(--accent2);border-left:2px solid var(--accent);}
+.room-row.on .rc{color:var(--fg3);}
+.rc{font-size:0.65rem;color:var(--fg3);}
+.user-row{display:flex;align-items:center;gap:0.42rem;padding:0.28rem 0;font-size:0.8rem;color:var(--fg2);text-transform:lowercase;}
+.uav{width:22px;height:22px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;flex-shrink:0;}
+
+.panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.glow-line{height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.4;flex-shrink:0;}
+
+.vstrip{display:flex;height:190px;border-bottom:1px solid var(--border);background:#0a0514;flex-shrink:0;overflow:hidden;}
+.vstrip.hide{display:none;}
+.vstrip.mic{height:62px;background:var(--bg2);border-bottom:1px solid var(--border);}
+.vtile{flex:1;position:relative;overflow:hidden;border-right:1px solid #1e0a35;}
+.vtile:last-child{border-right:none;}
+.vtile video{width:100%;height:100%;object-fit:cover;display:block;}
+.vtile-lbl{position:absolute;bottom:7px;left:8px;font-size:0.65rem;color:#fff;background:rgba(0,0,0,0.55);padding:2px 6px;border-radius:4px;z-index:2;text-transform:lowercase;}
+.find{position:absolute;top:7px;right:8px;width:8px;height:8px;border-radius:50%;z-index:2;}
+.find.ok{background:var(--green);box-shadow:0 0 6px var(--green);}
+.find.warn{background:var(--amber);animation:blink .7s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.1}}
+.foverlay{position:absolute;inset:0;background:rgba(240,64,96,0.18);display:none;flex-direction:column;align-items:center;justify-content:center;gap:0.25rem;z-index:3;color:#fff;font-size:0.72rem;text-transform:lowercase;}
+.foverlay.show{display:flex;}
+.fcd{font-size:1.6rem;font-weight:700;color:var(--red);}
+.fbar{position:absolute;bottom:0;left:0;height:2px;background:var(--red);z-index:4;transition:width 1s linear;box-shadow:0 0 6px var(--red);}
+.vph{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.35rem;height:100%;color:var(--fg3);font-size:0.72rem;text-transform:lowercase;}
+.mic-bar-row{display:flex;align-items:center;justify-content:center;gap:0.45rem;height:100%;padding:0 1rem;}
+.mbars{display:flex;align-items:center;gap:2px;}
+.mb{width:3px;background:var(--accent);border-radius:2px;animation:mbp .9s ease-in-out infinite;}
+.mb:nth-child(1){height:7px;animation-delay:0s}.mb:nth-child(2){height:14px;animation-delay:.1s}.mb:nth-child(3){height:20px;animation-delay:.2s}.mb:nth-child(4){height:11px;animation-delay:.3s}.mb:nth-child(5){height:17px;animation-delay:.15s}
+@keyframes mbp{0%,100%{transform:scaleY(1);opacity:.5}50%{transform:scaleY(1.5);opacity:1}}
+
+.msgs{flex:1;overflow-y:auto;padding:1rem 1.2rem;display:flex;flex-direction:column;gap:0.48rem;scroll-behavior:smooth;}
+.msgs::-webkit-scrollbar{width:3px;}
+.msgs::-webkit-scrollbar-thumb{background:var(--border);}
+.sysmsg{text-align:center;font-size:0.66rem;color:var(--fg3);padding:0.2rem 0;text-transform:lowercase;}
+.msg{display:flex;gap:0.52rem;max-width:78%;}
+.msg.own{align-self:flex-end;flex-direction:row-reverse;}
+.mav{width:27px;height:27px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.78rem;flex-shrink:0;align-self:flex-end;}
+.mbody{display:flex;flex-direction:column;gap:0.14rem;}
+.msg.own .mbody{align-items:flex-end;}
+.mmeta{font-size:0.62rem;color:var(--fg3);display:flex;gap:0.28rem;align-items:center;text-transform:lowercase;}
+.msg.own .mmeta{flex-direction:row-reverse;}
+.mname{font-weight:600;color:var(--fg2);}
+.mbubble{padding:0.5rem 0.72rem;border-radius:10px 10px 10px 3px;background:var(--surface);border:1px solid var(--border);font-size:0.84rem;line-height:1.45;word-break:break-word;}
+.msg.own .mbubble{background:rgba(155,89,245,0.2);border-color:var(--border2);border-radius:10px 10px 3px 10px;}
+.vbubble{display:flex;align-items:center;gap:0.42rem;padding:0.46rem 0.62rem;border-radius:10px 10px 10px 3px;background:var(--surface);border:1px solid var(--border);cursor:pointer;transition:background 0.1s;min-width:165px;}
+.vbubble:hover{background:var(--surface2);}
+.msg.own .vbubble{background:rgba(155,89,245,0.2);border-color:var(--border2);border-radius:10px 10px 3px 10px;}
+.msg.own .vbubble:hover{background:rgba(155,89,245,0.3);}
+.vplay{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.7rem;flex-shrink:0;box-shadow:0 0 10px var(--glow);}
+.vwave{flex:1;display:flex;align-items:center;gap:2px;height:18px;overflow:hidden;}
+.vwb{width:2px;background:var(--accent2);border-radius:1px;opacity:0.4;}
+.vdur{font-size:0.68rem;opacity:.65;flex-shrink:0;color:var(--fg2);}
+
+.ibar{display:flex;align-items:center;gap:0.42rem;padding:0.68rem 1.2rem;border-top:1px solid var(--border);background:rgba(18,8,32,0.8);backdrop-filter:blur(8px);flex-shrink:0;}
+.minput{flex:1;padding:0.56rem 0.82rem;border:1px solid var(--border);border-radius:var(--rp);background:var(--surface);color:var(--fg);font-family:'Satoshi',sans-serif;font-size:0.84rem;outline:none;transition:border-color 0.15s,box-shadow 0.15s;}
+.minput:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(155,89,245,0.12);}
+.minput::placeholder{color:var(--fg3);}
+.ibtn{width:35px;height:35px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--fg2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.92rem;flex-shrink:0;transition:all 0.12s;}
+.ibtn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px var(--glow);}
+.ibtn.rec{border-color:var(--red);color:var(--red);animation:blink .7s ease-in-out infinite;}
+.ibtn.off{color:var(--fg3);}
+.sbtn{width:35px;height:35px;border-radius:50%;border:none;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.82rem;flex-shrink:0;transition:opacity 0.12s,box-shadow 0.12s;box-shadow:0 0 14px var(--glow);}
+.sbtn:hover{opacity:.82;box-shadow:0 0 22px var(--glow);}
+
+/* spinner */
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* toast */
+.toast{position:fixed;bottom:1.3rem;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);color:var(--fg);padding:0.5rem 1rem;border-radius:var(--rp);font-size:0.78rem;z-index:9999;white-space:nowrap;pointer-events:none;animation:tin .18s ease;text-transform:lowercase;box-shadow:0 0 20px rgba(0,0,0,0.4);}
+.toast.w{background:#3a2000;border-color:var(--amber);color:var(--amber);}
+.toast.d{background:#3a0010;border-color:var(--red);color:var(--red);}
+.toast.ok{background:#003a18;border-color:var(--green);color:var(--green);}
+@keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(6px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+#det{display:none;}
+@media(max-width:640px){.sidebar{display:none;}.vstrip{height:140px;}.nav .nav-r .nav-ghost{display:none;}}
+</style>
+</head>
+<body>
+
+<div class="bg-icons" id="bgicons"></div>
+
+<!-- nav -->
+<nav class="nav" id="topnav">
+  <div class="nav-logo" onclick="goHome()">🌐 globe<span>.chat</span></div>
+  <div class="nav-r" id="nav-auth-btns">
+    <button class="nav-ghost" onclick="showTab('login')">log in</button>
+    <button class="nav-btn" onclick="showTab('register')">sign up free</button>
+  </div>
+  <div class="nav-r" id="nav-user-area" style="display:none">
+    <div class="chip"><div class="dot"></div><span id="nav-username">—</span></div>
+    <button class="nav-ghost" onclick="logout()">log out</button>
+  </div>
+</nav>
+
+<!-- auth screen -->
+<div id="auth" class="screen active">
+  <div class="auth-hero">
+    <h1>connect with the <em>world,</em><br>right here.</h1>
+    <p>globe.chat — real-time video, voice & text chat sorted by country.</p>
+  </div>
+
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <div class="auth-tab on" id="tab-login" onclick="showTab('login')">log in</div>
+      <div class="auth-tab" id="tab-register" onclick="showTab('register')">create account</div>
+    </div>
+
+    <!-- login panel -->
+    <div class="auth-panel on" id="panel-login">
+      <div class="auth-msg" id="login-msg"></div>
+      <div class="field">
+        <label>email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>password</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="auth-btn" id="login-btn" onclick="doLogin()">log in →</button>
+      <p class="auth-link">don't have an account? <a onclick="showTab('register')">sign up free</a></p>
+      <p class="auth-link"><a onclick="showResend()">resend verification email</a></p>
+    </div>
+
+    <!-- register panel -->
+    <div class="auth-panel" id="panel-register">
+      <div class="auth-msg" id="reg-msg"></div>
+      <div class="field">
+        <label>username</label>
+        <input type="text" id="reg-name" placeholder="your display name" maxlength="24" autocomplete="username">
+        <span class="field-hint">2–24 characters, shown in chat</span>
+      </div>
+      <div class="field">
+        <label>email</label>
+        <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>password</label>
+        <input type="password" id="reg-pass" placeholder="at least 8 characters" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter')doRegister()">
+      </div>
+      <button class="auth-btn" id="reg-btn" onclick="doRegister()">create account →</button>
+      <p class="auth-link">already have an account? <a onclick="showTab('login')">log in</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- verify pending -->
+<div id="verify-pending" class="screen">
+  <div class="vp-icon">📬</div>
+  <div class="vp-title">check your inbox!</div>
+  <div class="vp-sub">we sent a verification link to <span class="vp-email" id="vp-email">your email</span>. click it to activate your account.</div>
+  <button class="btn-sm" onclick="showResend()" style="margin-top:0.5rem">resend email</button>
+  <p class="auth-link" style="margin-top:0.5rem"><a onclick="showTab('login')">← back to login</a></p>
+</div>
+
+<!-- banned -->
+<div id="banned" class="screen">
+  <div class="ban-icon">🚫</div>
+  <div class="ban-title">no face detected</div>
+  <div class="ban-sub">you must show your real face. your session is temporarily suspended.</div>
+  <div class="ban-cd" id="bcd">02:00</div>
+  <button class="btn-sm" onclick="retryBan()">check again</button>
+</div>
+
+<!-- lobby -->
+<div id="lobby" class="screen">
+  <div class="lobby-hero">
+    <h1>welcome back, <em id="lobby-uname">friend</em></h1>
+    <p>pick your room and connection mode, then jump in.</p>
+  </div>
+
+  <div class="lcard">
+    <div class="lcard-title">🚀 start a session</div>
+
+    <div class="field">
+      <label>your country</label>
+      <div class="sel-wrap"><select id="icountry"></select></div>
+    </div>
+
+    <div class="field">
+      <label>room</label>
+      <div class="sel-wrap">
+        <select id="iroom">
+          <option value="global">🌍 global lounge</option>
+          <option value="country">🏠 my country</option>
+          <option value="americas">🌎 americas</option>
+          <option value="europe">🌍 europe</option>
+          <option value="asia">🌏 asia-pacific</option>
+          <option value="africa">🌍 africa & middle east</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>connection mode</label>
+      <div class="modes" id="modes">
+        <div class="mode sel" data-m="video-mic"><span class="mt">📹 video + mic</span><span class="ms">full experience</span></div>
+        <div class="mode" data-m="video-only"><span class="mt">📹 video only</span><span class="ms">no microphone</span></div>
+        <div class="mode" data-m="mic-only"><span class="mt">🎤 mic only</span><span class="ms">voice, no camera</span></div>
+        <div class="mode" data-m="chat-only"><span class="mt">💬 chat only</span><span class="ms">text messages</span></div>
+      </div>
+    </div>
+
+    <button class="btn-join" onclick="join()">join room →</button>
+    <p class="note" id="jnote">video mode: face must be visible · no face = temp ban · be kind</p>
+  </div>
+</div>
+
+<!-- chat -->
+<div id="chat" class="screen">
+  <div class="topbar">
+    <div class="topbar-logo" onclick="leaveChat()">🌐 globe<span>.chat</span></div>
+    <span class="topbar-div">/</span>
+    <div class="chip"><div class="dot"></div><span id="tbuser">—</span></div>
+    <div class="chip" id="tbroom">🌍 global lounge</div>
+    <div class="tr">
+      <div class="chip" id="tbonline">— online</div>
+      <button class="btn-leave" onclick="leaveChat()">← leave</button>
+    </div>
+  </div>
+  <div class="glow-line"></div>
+  <div class="cbody">
+    <div class="sidebar">
+      <div class="sb-sec"><div class="sb-label">rooms</div><div id="rlist"></div></div>
+      <div class="sb-sec" style="flex:1"><div class="sb-label">online now</div><div id="ulist"></div></div>
+    </div>
+    <div class="panel">
+      <div class="vstrip" id="vstrip">
+        <div class="vtile" id="ltile">
+          <video id="lvid" autoplay muted playsinline></video>
+          <div class="vtile-lbl" id="llbl">you</div>
+          <div class="find" id="fdot"></div>
+          <div class="foverlay" id="fov"><span style="font-size:1.3rem">⚠</span><span>no face detected</span><span class="fcd" id="fcd">10</span></div>
+          <div class="fbar" id="fbar" style="width:100%"></div>
+        </div>
+        <div class="vtile" id="rtile"><div class="vph"><span style="font-size:1.5rem">📡</span><span>waiting for others...</span></div></div>
+      </div>
+      <div class="msgs" id="msgs"></div>
+      <div class="ibar">
+        <button class="ibtn" id="micbtn" onclick="toggleMic()" title="voice message">🎤</button>
+        <button class="ibtn" id="cambtn" onclick="toggleCam()" title="toggle camera">📷</button>
+        <input class="minput" id="msginput" placeholder="say something to the room..."
+          maxlength="500" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}">
+        <button class="sbtn" onclick="sendMsg()">↑</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<canvas id="det"></canvas>
+
+<script>
+'use strict';
+
+// ── bg icons ──
+(()=>{
+  const icons=['🌍','🌎','🌏','📡','🛰','💬','🎙','📶','🔊','🌐','📻','🗺'];
+  const c=document.getElementById('bgicons');
+  for(let i=0;i<28;i++){
+    const d=document.createElement('div');d.className='bg-icon';
+    d.textContent=icons[Math.floor(Math.random()*icons.length)];
+    const rot=(Math.random()*60-30).toFixed(1);
+    d.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;font-size:${1.2+Math.random()*2.2}rem;--rot:${rot}deg;transform:rotate(${rot}deg);animation-delay:${(Math.random()*10).toFixed(1)}s;animation-duration:${14+Math.random()*14}s;`;
+    c.appendChild(d);
+  }
+})();
+
+// ── countries ──
+const COUNTRIES=[
+  {c:'AF',n:'afghanistan',f:'🇦🇫',r:'asia'},{c:'AL',n:'albania',f:'🇦🇱',r:'europe'},
+  {c:'DZ',n:'algeria',f:'🇩🇿',r:'africa'},{c:'AD',n:'andorra',f:'🇦🇩',r:'europe'},
+  {c:'AO',n:'angola',f:'🇦🇴',r:'africa'},{c:'AG',n:'antigua & barbuda',f:'🇦🇬',r:'americas'},
+  {c:'AR',n:'argentina',f:'🇦🇷',r:'americas'},{c:'AM',n:'armenia',f:'🇦🇲',r:'asia'},
+  {c:'AW',n:'aruba',f:'🇦🇼',r:'americas'},{c:'AU',n:'australia',f:'🇦🇺',r:'asia'},
+  {c:'AT',n:'austria',f:'🇦🇹',r:'europe'},{c:'AZ',n:'azerbaijan',f:'🇦🇿',r:'asia'},
+  {c:'BS',n:'bahamas',f:'🇧🇸',r:'americas'},{c:'BH',n:'bahrain',f:'🇧🇭',r:'africa'},
+  {c:'BD',n:'bangladesh',f:'🇧🇩',r:'asia'},{c:'BB',n:'barbados',f:'🇧🇧',r:'americas'},
+  {c:'BY',n:'belarus',f:'🇧🇾',r:'europe'},{c:'BE',n:'belgium',f:'🇧🇪',r:'europe'},
+  {c:'BZ',n:'belize',f:'🇧🇿',r:'americas'},{c:'BJ',n:'benin',f:'🇧🇯',r:'africa'},
+  {c:'BT',n:'bhutan',f:'🇧🇹',r:'asia'},{c:'BO',n:'bolivia',f:'🇧🇴',r:'americas'},
+  {c:'BQ',n:'bonaire',f:'🇧🇶',r:'americas'},{c:'BA',n:'bosnia & herzegovina',f:'🇧🇦',r:'europe'},
+  {c:'BW',n:'botswana',f:'🇧🇼',r:'africa'},{c:'BR',n:'brazil',f:'🇧🇷',r:'americas'},
+  {c:'BN',n:'brunei',f:'🇧🇳',r:'asia'},{c:'BG',n:'bulgaria',f:'🇧🇬',r:'europe'},
+  {c:'BF',n:'burkina faso',f:'🇧🇫',r:'africa'},{c:'BI',n:'burundi',f:'🇧🇮',r:'africa'},
+  {c:'CV',n:'cabo verde',f:'🇨🇻',r:'africa'},{c:'KH',n:'cambodia',f:'🇰🇭',r:'asia'},
+  {c:'CM',n:'cameroon',f:'🇨🇲',r:'africa'},{c:'CA',n:'canada',f:'🇨🇦',r:'americas'},
+  {c:'CF',n:'central african republic',f:'🇨🇫',r:'africa'},{c:'TD',n:'chad',f:'🇹🇩',r:'africa'},
+  {c:'CL',n:'chile',f:'🇨🇱',r:'americas'},{c:'CN',n:'china',f:'🇨🇳',r:'asia'},
+  {c:'CO',n:'colombia',f:'🇨🇴',r:'americas'},{c:'KM',n:'comoros',f:'🇰🇲',r:'africa'},
+  {c:'CG',n:'congo',f:'🇨🇬',r:'africa'},{c:'CD',n:'congo (drc)',f:'🇨🇩',r:'africa'},
+  {c:'CR',n:'costa rica',f:'🇨🇷',r:'americas'},{c:'CI',n:"côte d'ivoire",f:'🇨🇮',r:'africa'},
+  {c:'HR',n:'croatia',f:'🇭🇷',r:'europe'},{c:'CU',n:'cuba',f:'🇨🇺',r:'americas'},
+  {c:'CW',n:'curaçao',f:'🇨🇼',r:'americas'},{c:'CY',n:'cyprus',f:'🇨🇾',r:'europe'},
+  {c:'CZ',n:'czechia',f:'🇨🇿',r:'europe'},{c:'DK',n:'denmark',f:'🇩🇰',r:'europe'},
+  {c:'DJ',n:'djibouti',f:'🇩🇯',r:'africa'},{c:'DM',n:'dominica',f:'🇩🇲',r:'americas'},
+  {c:'DO',n:'dominican republic',f:'🇩🇴',r:'americas'},{c:'EC',n:'ecuador',f:'🇪🇨',r:'americas'},
+  {c:'EG',n:'egypt',f:'🇪🇬',r:'africa'},{c:'SV',n:'el salvador',f:'🇸🇻',r:'americas'},
+  {c:'GQ',n:'equatorial guinea',f:'🇬🇶',r:'africa'},{c:'ER',n:'eritrea',f:'🇪🇷',r:'africa'},
+  {c:'EE',n:'estonia',f:'🇪🇪',r:'europe'},{c:'SZ',n:'eswatini',f:'🇸🇿',r:'africa'},
+  {c:'ET',n:'ethiopia',f:'🇪🇹',r:'africa'},{c:'FJ',n:'fiji',f:'🇫🇯',r:'asia'},
+  {c:'FI',n:'finland',f:'🇫🇮',r:'europe'},{c:'FR',n:'france',f:'🇫🇷',r:'europe'},
+  {c:'GA',n:'gabon',f:'🇬🇦',r:'africa'},{c:'GM',n:'gambia',f:'🇬🇲',r:'africa'},
+  {c:'GE',n:'georgia',f:'🇬🇪',r:'asia'},{c:'DE',n:'germany',f:'🇩🇪',r:'europe'},
+  {c:'GH',n:'ghana',f:'🇬🇭',r:'africa'},{c:'GR',n:'greece',f:'🇬🇷',r:'europe'},
+  {c:'GD',n:'grenada',f:'🇬🇩',r:'americas'},{c:'GT',n:'guatemala',f:'🇬🇹',r:'americas'},
+  {c:'GN',n:'guinea',f:'🇬🇳',r:'africa'},{c:'GW',n:'guinea-bissau',f:'🇬🇼',r:'africa'},
+  {c:'GY',n:'guyana',f:'🇬🇾',r:'americas'},{c:'HT',n:'haiti',f:'🇭🇹',r:'americas'},
+  {c:'HN',n:'honduras',f:'🇭🇳',r:'americas'},{c:'HU',n:'hungary',f:'🇭🇺',r:'europe'},
+  {c:'IS',n:'iceland',f:'🇮🇸',r:'europe'},{c:'IN',n:'india',f:'🇮🇳',r:'asia'},
+  {c:'ID',n:'indonesia',f:'🇮🇩',r:'asia'},{c:'IR',n:'iran',f:'🇮🇷',r:'asia'},
+  {c:'IQ',n:'iraq',f:'🇮🇶',r:'africa'},{c:'IE',n:'ireland',f:'🇮🇪',r:'europe'},
+  {c:'IL',n:'israel',f:'🇮🇱',r:'africa'},{c:'IT',n:'italy',f:'🇮🇹',r:'europe'},
+  {c:'JM',n:'jamaica',f:'🇯🇲',r:'americas'},{c:'JP',n:'japan',f:'🇯🇵',r:'asia'},
+  {c:'JO',n:'jordan',f:'🇯🇴',r:'africa'},{c:'KZ',n:'kazakhstan',f:'🇰🇿',r:'asia'},
+  {c:'KE',n:'kenya',f:'🇰🇪',r:'africa'},{c:'KI',n:'kiribati',f:'🇰🇮',r:'asia'},
+  {c:'KW',n:'kuwait',f:'🇰🇼',r:'africa'},{c:'KG',n:'kyrgyzstan',f:'🇰🇬',r:'asia'},
+  {c:'LA',n:'laos',f:'🇱🇦',r:'asia'},{c:'LV',n:'latvia',f:'🇱🇻',r:'europe'},
+  {c:'LB',n:'lebanon',f:'🇱🇧',r:'africa'},{c:'LS',n:'lesotho',f:'🇱🇸',r:'africa'},
+  {c:'LR',n:'liberia',f:'🇱🇷',r:'africa'},{c:'LY',n:'libya',f:'🇱🇾',r:'africa'},
+  {c:'LI',n:'liechtenstein',f:'🇱🇮',r:'europe'},{c:'LT',n:'lithuania',f:'🇱🇹',r:'europe'},
+  {c:'LU',n:'luxembourg',f:'🇱🇺',r:'europe'},{c:'MG',n:'madagascar',f:'🇲🇬',r:'africa'},
+  {c:'MW',n:'malawi',f:'🇲🇼',r:'africa'},{c:'MY',n:'malaysia',f:'🇲🇾',r:'asia'},
+  {c:'MV',n:'maldives',f:'🇲🇻',r:'asia'},{c:'ML',n:'mali',f:'🇲🇱',r:'africa'},
+  {c:'MT',n:'malta',f:'🇲🇹',r:'europe'},{c:'MH',n:'marshall islands',f:'🇲🇭',r:'asia'},
+  {c:'MR',n:'mauritania',f:'🇲🇷',r:'africa'},{c:'MU',n:'mauritius',f:'🇲🇺',r:'africa'},
+  {c:'MX',n:'mexico',f:'🇲🇽',r:'americas'},{c:'FM',n:'micronesia',f:'🇫🇲',r:'asia'},
+  {c:'MD',n:'moldova',f:'🇲🇩',r:'europe'},{c:'MC',n:'monaco',f:'🇲🇨',r:'europe'},
+  {c:'MN',n:'mongolia',f:'🇲🇳',r:'asia'},{c:'ME',n:'montenegro',f:'🇲🇪',r:'europe'},
+  {c:'MA',n:'morocco',f:'🇲🇦',r:'africa'},{c:'MZ',n:'mozambique',f:'🇲🇿',r:'africa'},
+  {c:'MM',n:'myanmar',f:'🇲🇲',r:'asia'},{c:'NA',n:'namibia',f:'🇳🇦',r:'africa'},
+  {c:'NR',n:'nauru',f:'🇳🇷',r:'asia'},{c:'NP',n:'nepal',f:'🇳🇵',r:'asia'},
+  {c:'NL',n:'netherlands',f:'🇳🇱',r:'europe'},{c:'NZ',n:'new zealand',f:'🇳🇿',r:'asia'},
+  {c:'NI',n:'nicaragua',f:'🇳🇮',r:'americas'},{c:'NE',n:'niger',f:'🇳🇪',r:'africa'},
+  {c:'NG',n:'nigeria',f:'🇳🇬',r:'africa'},{c:'KP',n:'north korea',f:'🇰🇵',r:'asia'},
+  {c:'MK',n:'north macedonia',f:'🇲🇰',r:'europe'},{c:'NO',n:'norway',f:'🇳🇴',r:'europe'},
+  {c:'OM',n:'oman',f:'🇴🇲',r:'africa'},{c:'PK',n:'pakistan',f:'🇵🇰',r:'asia'},
+  {c:'PW',n:'palau',f:'🇵🇼',r:'asia'},{c:'PS',n:'palestine',f:'🇵🇸',r:'africa'},
+  {c:'PA',n:'panama',f:'🇵🇦',r:'americas'},{c:'PG',n:'papua new guinea',f:'🇵🇬',r:'asia'},
+  {c:'PY',n:'paraguay',f:'🇵🇾',r:'americas'},{c:'PE',n:'peru',f:'🇵🇪',r:'americas'},
+  {c:'PH',n:'philippines',f:'🇵🇭',r:'asia'},{c:'PL',n:'poland',f:'🇵🇱',r:'europe'},
+  {c:'PT',n:'portugal',f:'🇵🇹',r:'europe'},{c:'QA',n:'qatar',f:'🇶🇦',r:'africa'},
+  {c:'RO',n:'romania',f:'🇷🇴',r:'europe'},{c:'RU',n:'russia',f:'🇷🇺',r:'europe'},
+  {c:'RW',n:'rwanda',f:'🇷🇼',r:'africa'},{c:'KN',n:'saint kitts & nevis',f:'🇰🇳',r:'americas'},
+  {c:'LC',n:'saint lucia',f:'🇱🇨',r:'americas'},{c:'VC',n:'saint vincent & grenadines',f:'🇻🇨',r:'americas'},
+  {c:'WS',n:'samoa',f:'🇼🇸',r:'asia'},{c:'SM',n:'san marino',f:'🇸🇲',r:'europe'},
+  {c:'ST',n:'são tomé & príncipe',f:'🇸🇹',r:'africa'},{c:'SA',n:'saudi arabia',f:'🇸🇦',r:'africa'},
+  {c:'SN',n:'senegal',f:'🇸🇳',r:'africa'},{c:'RS',n:'serbia',f:'🇷🇸',r:'europe'},
+  {c:'SC',n:'seychelles',f:'🇸🇨',r:'africa'},{c:'SL',n:'sierra leone',f:'🇸🇱',r:'africa'},
+  {c:'SG',n:'singapore',f:'🇸🇬',r:'asia'},{c:'SK',n:'slovakia',f:'🇸🇰',r:'europe'},
+  {c:'SI',n:'slovenia',f:'🇸🇮',r:'europe'},{c:'SB',n:'solomon islands',f:'🇸🇧',r:'asia'},
+  {c:'SO',n:'somalia',f:'🇸🇴',r:'africa'},{c:'ZA',n:'south africa',f:'🇿🇦',r:'africa'},
+  {c:'KR',n:'south korea',f:'🇰🇷',r:'asia'},{c:'SS',n:'south sudan',f:'🇸🇸',r:'africa'},
+  {c:'ES',n:'spain',f:'🇪🇸',r:'europe'},{c:'LK',n:'sri lanka',f:'🇱🇰',r:'asia'},
+  {c:'SD',n:'sudan',f:'🇸🇩',r:'africa'},{c:'SR',n:'suriname',f:'🇸🇷',r:'americas'},
+  {c:'SE',n:'sweden',f:'🇸🇪',r:'europe'},{c:'CH',n:'switzerland',f:'🇨🇭',r:'europe'},
+  {c:'SY',n:'syria',f:'🇸🇾',r:'africa'},{c:'TW',n:'taiwan',f:'🇹🇼',r:'asia'},
+  {c:'TJ',n:'tajikistan',f:'🇹🇯',r:'asia'},{c:'TZ',n:'tanzania',f:'🇹🇿',r:'africa'},
+  {c:'TH',n:'thailand',f:'🇹🇭',r:'asia'},{c:'TL',n:'timor-leste',f:'🇹🇱',r:'asia'},
+  {c:'TG',n:'togo',f:'🇹🇬',r:'africa'},{c:'TO',n:'tonga',f:'🇹🇴',r:'asia'},
+  {c:'TT',n:'trinidad & tobago',f:'🇹🇹',r:'americas'},{c:'TN',n:'tunisia',f:'🇹🇳',r:'africa'},
+  {c:'TR',n:'turkey',f:'🇹🇷',r:'europe'},{c:'TM',n:'turkmenistan',f:'🇹🇲',r:'asia'},
+  {c:'TV',n:'tuvalu',f:'🇹🇻',r:'asia'},{c:'UG',n:'uganda',f:'🇺🇬',r:'africa'},
+  {c:'UA',n:'ukraine',f:'🇺🇦',r:'europe'},{c:'AE',n:'united arab emirates',f:'🇦🇪',r:'africa'},
+  {c:'GB',n:'united kingdom',f:'🇬🇧',r:'europe'},{c:'US',n:'united states',f:'🇺🇸',r:'americas'},
+  {c:'UY',n:'uruguay',f:'🇺🇾',r:'americas'},{c:'UZ',n:'uzbekistan',f:'🇺🇿',r:'asia'},
+  {c:'VU',n:'vanuatu',f:'🇻🇺',r:'asia'},{c:'VA',n:'vatican city',f:'🇻🇦',r:'europe'},
+  {c:'VE',n:'venezuela',f:'🇻🇪',r:'americas'},{c:'VN',n:'vietnam',f:'🇻🇳',r:'asia'},
+  {c:'YE',n:'yemen',f:'🇾🇪',r:'africa'},{c:'ZM',n:'zambia',f:'🇿🇲',r:'africa'},
+  {c:'ZW',n:'zimbabwe',f:'🇿🇼',r:'africa'},
+];
+const ROOMS=[
+  {id:'global',label:'🌍 global lounge'},{id:'country',label:'🏠 my country'},
+  {id:'americas',label:'🌎 americas'},{id:'europe',label:'🌍 europe'},
+  {id:'asia',label:'🌏 asia-pacific'},{id:'africa',label:'🌍 africa & middle east'},
+];
+
+// ── app state ──
+let currentUser=null; // {email, username, token}
+let me=null,mode='video-mic',curRoom='global';
+let stream=null,rec=null,chunks=[],blobs={},blobId=0,isRec=false,camOn=true;
+let simIv=null,faceIv=null,faceTimer=null,faceLeft=0;
+const GRACE=10,BAN_SEC=120,BKEY='gc_ban4';
+
+// ── init ──
+window.addEventListener('DOMContentLoaded',()=>{
+  // country dropdown
+  const sel=document.getElementById('icountry');
+  COUNTRIES.forEach(co=>{
+    const o=document.createElement('option');o.value=co.c;o.textContent=`${co.f} ${co.n}`;sel.appendChild(o);
+  });
+  try{
+    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const TZ={'America/Kralendijk':'BQ','America/Curacao':'CW','America/Aruba':'AW',
+      'America/New_York':'US','America/Los_Angeles':'US','Europe/Amsterdam':'NL',
+      'Europe/London':'GB','Europe/Paris':'FR','Europe/Berlin':'DE',
+      'America/Sao_Paulo':'BR','Asia/Tokyo':'JP','Asia/Kolkata':'IN','Asia/Shanghai':'CN',
+      'Australia/Sydney':'AU','Pacific/Auckland':'NZ'};
+    if(TZ[tz])sel.value=TZ[tz];
+  }catch(e){}
+
+  // mode cards
+  document.getElementById('modes').addEventListener('click',e=>{
+    const card=e.target.closest('.mode');if(!card)return;
+    document.querySelectorAll('.mode').forEach(c=>c.classList.remove('sel'));
+    card.classList.add('sel');mode=card.dataset.m;
+    const notes={'video-mic':'video mode: face must be visible · no face = temp ban · be kind',
+      'video-only':'video mode: face must be visible · no face = temp ban · be kind',
+      'mic-only':'voice only — microphone will be requested',
+      'chat-only':'text only — no camera or mic needed'};
+    document.getElementById('jnote').textContent=notes[mode];
+  });
+
+  // check saved session
+  const saved=localStorage.getItem('gc_token');
+  if(saved) restoreSession(saved);
+  else checkBan();
+});
+
+async function restoreSession(token){
+  try{
+    const res=await fetch('/api/me',{headers:{'Authorization':'Bearer '+token}});
+    if(res.ok){
+      const data=await res.json();
+      currentUser={...data.user,token};
+      afterLogin();
+    }else{
+      localStorage.removeItem('gc_token');
+      checkBan();
+    }
+  }catch{checkBan();}
+}
+
+// ── screens ──
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const nav=document.getElementById('topnav');
+  const chatScreens=['chat','banned'];
+  nav.style.display=chatScreens.includes(id)?'none':'';
+}
+
+function goHome(){
+  if(currentUser) show('lobby');
+  else show('auth');
+}
+
+// ── ban ──
+function checkBan(){
+  const u=parseInt(localStorage.getItem(BKEY)||'0');
+  if(u&&Date.now()<u){showBan(u);return true;}
+  localStorage.removeItem(BKEY);return false;
+}
+function retryBan(){if(!checkBan()) show(currentUser?'lobby':'auth');}
+function showBan(until){
+  show('banned');
+  const el=document.getElementById('bcd');clearInterval(window._bt);
+  window._bt=setInterval(()=>{
+    const rem=Math.max(0,until-Date.now());
+    const m=Math.floor(rem/60000),s=Math.floor((rem%60000)/1000);
+    el.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    if(rem===0){clearInterval(window._bt);retryBan();}
+  },500);
+}
+function doBan(){
+  const u=Date.now()+BAN_SEC*1000;localStorage.setItem(BKEY,String(u));
+  stopAll();showBan(u);toast('banned — no face detected for too long','d');
+}
+
+// ── auth tabs ──
+function showTab(tab){
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.auth-panel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('tab-'+tab).classList.add('on');
+  document.getElementById('panel-'+tab).classList.add('on');
+  show('auth');
+}
+
+function setAuthMsg(panel,msg,type){
+  const el=document.getElementById(panel+'-msg');
+  el.textContent=msg;
+  el.className='auth-msg '+(type||'err')+' show';
+}
+function clearAuthMsg(panel){
+  const el=document.getElementById(panel+'-msg');
+  el.className='auth-msg';el.textContent='';
+}
+
+function setBtnLoading(id,loading,label){
+  const btn=document.getElementById(id);
+  btn.disabled=loading;
+  btn.innerHTML=loading?`<span class="spin"></span>${label||'loading...'}`:btn.dataset.label||label||btn.textContent;
+  if(!btn.dataset.label&&label)btn.dataset.label=label;
+}
+
+// ── register ──
+async function doRegister(){
+  clearAuthMsg('reg');
+  const name=document.getElementById('reg-name').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  if(!name||!email||!pass){setAuthMsg('reg','please fill in all fields.');return;}
+  setBtnLoading('reg-btn',true,'creating account...');
+  try{
+    const res=await fetch('/api/register',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:name,email,password:pass}),
+    });
+    const data=await res.json();
+    if(!res.ok){setAuthMsg('reg',data.error||'registration failed.');}
+    else{
+      document.getElementById('vp-email').textContent=email;
+      show('verify-pending');
+    }
+  }catch(e){setAuthMsg('reg','network error. please try again.');}
+  finally{setBtnLoading('reg-btn',false,'create account →');}
+}
+
+// ── login ──
+async function doLogin(){
+  clearAuthMsg('login');
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  if(!email||!pass){setAuthMsg('login','please enter email and password.');return;}
+  setBtnLoading('login-btn',true,'logging in...');
+  try{
+    const res=await fetch('/api/login',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pass}),
+    });
+    const data=await res.json();
+    if(!res.ok){
+      if(data.unverified){
+        setAuthMsg('login',data.error,'err');
+        // show resend option
+      }else{
+        setAuthMsg('login',data.error||'login failed.');
+      }
+    }else{
+      localStorage.setItem('gc_token',data.token);
+      currentUser={...data.user,token:data.token};
+      afterLogin();
+    }
+  }catch(e){setAuthMsg('login','network error. please try again.');}
+  finally{setBtnLoading('login-btn',false,'log in →');}
+}
+
+function afterLogin(){
+  if(checkBan())return;
+  // update nav
+  document.getElementById('nav-auth-btns').style.display='none';
+  document.getElementById('nav-user-area').style.display='';
+  document.getElementById('nav-username').textContent=currentUser.username;
+  // update lobby
+  document.getElementById('lobby-uname').textContent=currentUser.username;
+  show('lobby');
+}
+
+function logout(){
+  localStorage.removeItem('gc_token');
+  currentUser=null;
+  document.getElementById('nav-auth-btns').style.display='';
+  document.getElementById('nav-user-area').style.display='none';
+  show('auth');
+}
+
+// ── resend verification ──
+async function showResend(){
+  const email=prompt('enter your email to resend the verification link:');
+  if(!email)return;
+  try{
+    const res=await fetch('/api/resend-verify',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email}),
+    });
+    const data=await res.json();
+    toast(data.message||'email sent if account exists','ok');
+  }catch{toast('network error','d');}
+}
+
+// ── join chat ──
+async function join(){
+  if(!currentUser){show('auth');return;}
+  if(checkBan())return;
+  const code=document.getElementById('icountry').value;
+  const country=COUNTRIES.find(co=>co.c===code)||COUNTRIES[0];
+  const room=document.getElementById('iroom').value;
+  me={name:currentUser.username,country,room};curRoom=room;
+
+  const needV=mode==='video-mic'||mode==='video-only';
+  const needA=mode==='video-mic'||mode==='mic-only';
+  if(needV||needA){
+    try{stream=await navigator.mediaDevices.getUserMedia({video:needV,audio:needA});}
+    catch(err){toast(`${needV?'camera':'mic'} access denied`,'d');return;}
+  }
+
+  const vs=document.getElementById('vstrip');
+  const mb=document.getElementById('micbtn'),cb=document.getElementById('cambtn');
+  if(mode==='chat-only'){vs.classList.add('hide');mb.style.display='none';cb.style.display='none';}
+  else if(mode==='mic-only'){
+    vs.classList.remove('hide');vs.classList.add('mic');
+    document.getElementById('ltile').innerHTML=`<div class="mic-bar-row"><div class="mbars"><div class="mb"></div><div class="mb"></div><div class="mb"></div><div class="mb"></div><div class="mb"></div></div><span style="font-size:.72rem;color:var(--fg2);margin-left:.5rem">${country.f} ${me.name} · mic active</span></div>`;
+    document.getElementById('rtile').innerHTML=`<div class="mic-bar-row"><span style="color:var(--fg3);font-size:.72rem">🎤 voice room</span></div>`;
+    cb.style.display='none';
+  }else{
+    vs.classList.remove('hide','mic');
+    document.getElementById('lvid').srcObject=stream;
+    document.getElementById('llbl').textContent=`${country.f} ${me.name}`;
+    startFaceCheck();
+    if(mode==='video-only')mb.style.display='none';
+  }
+
+  document.getElementById('tbuser').textContent=`${country.f} ${me.name}`;
+  show('chat');
+  buildSidebar();setRoom(room,false);
+  sysmsg(`joined ${ROOMS.find(r=>r.id===room)?.label||'global lounge'}`);
+  startSim();
+  document.getElementById('tbonline').textContent=`${Math.floor(Math.random()*200)+50} online`;
+}
+
+function leaveChat(){
+  stopAll();
+  document.getElementById('msgs').innerHTML='';
+  const vs=document.getElementById('vstrip');vs.className='vstrip';
+  document.getElementById('ltile').innerHTML=`<video id="lvid" autoplay muted playsinline></video><div class="vtile-lbl" id="llbl">you</div><div class="find" id="fdot"></div><div class="foverlay" id="fov"><span style="font-size:1.3rem">⚠</span><span>no face detected</span><span class="fcd" id="fcd">10</span></div><div class="fbar" id="fbar" style="width:100%"></div>`;
+  document.getElementById('micbtn').style.display='';document.getElementById('cambtn').style.display='';
+  document.getElementById('micbtn').className='ibtn';document.getElementById('micbtn').textContent='🎤';
+  document.getElementById('cambtn').textContent='📷';camOn=true;isRec=false;
+  show('lobby');
+}
+
+function stopAll(){
+  stopFace();if(simIv){clearInterval(simIv);simIv=null;}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  if(rec&&rec.state!=='inactive')rec.stop();rec=null;isRec=false;
+}
+
+// ── sidebar ──
+function buildSidebar(){
+  const rl=document.getElementById('rlist');rl.innerHTML='';
+  ROOMS.forEach(r=>{
+    const d=document.createElement('div');d.className='room-row'+(r.id===curRoom?' on':'');
+    d.innerHTML=`<span>${r.label}</span><span class="rc">${Math.floor(Math.random()*70)+2}</span>`;
+    d.onclick=()=>switchRoom(r.id,d);rl.appendChild(d);
+  });buildUsers();
+}
+const FAKES=[{n:'alex',f:'🇺🇸',r:'americas'},{n:'yuki',f:'🇯🇵',r:'asia'},{n:'maria',f:'🇧🇷',r:'americas'},{n:'ahmed',f:'🇪🇬',r:'africa'},{n:'priya',f:'🇮🇳',r:'asia'},{n:'lars',f:'🇸🇪',r:'europe'},{n:'zoe',f:'🇬🇧',r:'europe'},{n:'felix',f:'🇩🇪',r:'europe'},{n:'sofia',f:'🇦🇷',r:'americas'},{n:'kenji',f:'🇯🇵',r:'asia'}];
+function buildUsers(){
+  const ul=document.getElementById('ulist');ul.innerHTML='';
+  const vis=FAKES.filter(u=>curRoom==='global'||( curRoom==='country'&&me&&u.f===me.country.f)||(u.r===curRoom)).slice(0,7);
+  vis.forEach(u=>{const d=document.createElement('div');d.className='user-row';d.innerHTML=`<div class="uav">${u.f}</div><span>${u.n}</span><div class="dot" style="margin-left:auto"></div>`;ul.appendChild(d);});
+}
+function switchRoom(id,el){curRoom=id;document.querySelectorAll('.room-row').forEach(e=>e.classList.remove('on'));el.classList.add('on');setRoom(id,true);buildUsers();}
+function setRoom(id,announce){const label=ROOMS.find(r=>r.id===id)?.label||'global lounge';document.getElementById('tbroom').textContent=label;if(announce)sysmsg(`switched to ${label}`);}
+
+// ── messages ──
+function sysmsg(t){const m=document.getElementById('msgs');const d=document.createElement('div');d.className='sysmsg';d.textContent=`— ${t} —`;m.appendChild(d);m.scrollTop=m.scrollHeight;}
+function addMsg({name,flag,text,own,vid,vdur}){
+  const m=document.getElementById('msgs');const d=document.createElement('div');d.className='msg'+(own?' own':'');
+  const time=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  let bubble;
+  if(vid!==undefined){const bars=Array.from({length:22},()=>`<div class="vwb" style="height:${4+Math.floor(Math.random()*13)}px"></div>`).join('');bubble=`<div class="vbubble" onclick="playBlob('${vid}',this)"><div class="vplay" id="vp${vid}">▶</div><div class="vwave">${bars}</div><span class="vdur">${vdur}</span></div>`;}
+  else{bubble=`<div class="mbubble">${esc(text)}</div>`;}
+  d.innerHTML=`<div class="mav">${flag||name.slice(0,2)}</div><div class="mbody"><div class="mmeta"><span class="mname">${esc(name)}</span><span>${time}</span></div>${bubble}</div>`;
+  m.appendChild(d);m.scrollTop=m.scrollHeight;
+}
+function sendMsg(){const inp=document.getElementById('msginput');const t=inp.value.trim();if(!t||!me)return;addMsg({name:me.name,flag:me.country.f,text:t,own:true});inp.value='';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── voice ──
+async function toggleMic(){
+  const btn=document.getElementById('micbtn');
+  if(!isRec){
+    try{
+      const src=stream||await navigator.mediaDevices.getUserMedia({audio:true});
+      const as=new MediaStream(src.getAudioTracks());
+      const mime=['audio/webm;codecs=opus','audio/webm','audio/ogg'].find(t=>{try{return MediaRecorder.isTypeSupported(t);}catch(e){return false;}})||'';
+      rec=new MediaRecorder(as,mime?{mimeType:mime}:{});chunks=[];
+      rec.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+      rec.onstop=finishRec;rec.start(100);isRec=true;
+      btn.classList.add('rec');btn.textContent='⏹';toast('recording... tap to send','w');
+    }catch(err){toast('mic access denied','d');}
+  }else{rec?.stop();isRec=false;btn.classList.remove('rec');btn.textContent='🎤';}
+}
+function finishRec(){
+  if(!chunks.length)return;
+  const blob=new Blob(chunks,{type:chunks[0].type||'audio/webm'});
+  const url=URL.createObjectURL(blob);const id=String(++blobId);blobs[id]=url;
+  const dur=Math.max(1,Math.round(blob.size/9000));const ds=`0:${String(Math.min(dur,59)).padStart(2,'0')}`;
+  addMsg({name:me.name,flag:me.country.f,vid:id,vdur:ds,own:true});
+}
+function playBlob(id,el){
+  const url=blobs[id];if(!url){toast('no audio available','w');return;}
+  const btn=el.querySelector(`#vp${id}`);const audio=new Audio(url);
+  if(btn)btn.textContent='⏸';audio.play();
+  audio.onended=()=>{if(btn)btn.textContent='▶';};
+  audio.onerror=()=>{if(btn)btn.textContent='▶';toast('playback error','d');};
+}
+
+// ── camera ──
+function toggleCam(){
+  if(!stream)return;const btn=document.getElementById('cambtn');const track=stream.getVideoTracks()[0];if(!track)return;
+  camOn=!camOn;track.enabled=camOn;btn.textContent=camOn?'📷':'🚫';btn.classList.toggle('off',!camOn);
+}
+
+// ── face detection ──
+function startFaceCheck(){faceIv=setInterval(checkFace,1500);}
+function stopFace(){if(faceIv)clearInterval(faceIv);if(faceTimer)clearInterval(faceTimer);faceIv=faceTimer=null;faceLeft=0;}
+function checkFace(){
+  const v=document.getElementById('lvid');if(!v||!stream||v.readyState<2)return;
+  const cv=document.getElementById('det');const ctx=cv.getContext('2d');cv.width=64;cv.height=48;
+  try{ctx.drawImage(v,0,0,64,48);}catch(e){return;}
+  let data;try{data=ctx.getImageData(0,0,64,48).data;}catch(e){return;}
+  let sum=0,sq=0,skin=0;const n=data.length/4;
+  for(let i=0;i<data.length;i+=4){const r=data[i],g=data[i+1],b=data[i+2];const lum=r*.299+g*.587+b*.114;sum+=lum;sq+=lum*lum;if(r>60&&g>40&&b>20&&r>g&&r>b&&(r-b)>15)skin++;}
+  const mean=sum/n,variance=sq/n-mean*mean,skinR=skin/n;
+  setFace(!(mean<8||(variance<80&&skinR<0.04)));
+}
+function setFace(ok){
+  const dot=document.getElementById('fdot');const ov=document.getElementById('fov');const bar=document.getElementById('fbar');if(!dot)return;
+  if(ok){dot.className='find ok';ov.classList.remove('show');bar.style.width='100%';if(faceLeft>0){faceLeft=0;if(faceTimer){clearInterval(faceTimer);faceTimer=null;}}}
+  else{dot.className='find warn';ov.classList.add('show');
+    if(faceLeft===0){faceLeft=GRACE;const fc=document.getElementById('fcd');if(fc)fc.textContent=faceLeft;bar.style.transition=`width ${GRACE}s linear`;bar.style.width='0%';toast(`show your face — ${GRACE}s remaining`,'w');
+      faceTimer=setInterval(()=>{faceLeft--;const fc=document.getElementById('fcd');if(fc)fc.textContent=faceLeft;if(faceLeft<=0){clearInterval(faceTimer);faceTimer=null;doBan();}},1000);
+    }
+  }
+}
+
+// ── sim chat ──
+const SIMS=[{n:'alex',f:'🇺🇸'},{n:'yuki',f:'🇯🇵'},{n:'maria',f:'🇧🇷'},{n:'ahmed',f:'🇪🇬'},{n:'priya',f:'🇮🇳'},{n:'zoe',f:'🇬🇧'}];
+const SIMMSGS=['hey everyone 👋','what time is it there?','anyone from europe?','first time here, seems chill',"how's the weather where you are?",'love this concept 🌍','hello from {f}!','good morning — or evening?','nice to meet everyone here','anyone want to chat? 😊'];
+function startSim(){
+  SIMS.slice(0,2).forEach((u,i)=>setTimeout(()=>addMsg({name:u.n,flag:u.f,text:pick(u)}),(i+1)*1600));
+  simIv=setInterval(()=>{if(Math.random()>.42)return;const u=SIMS[Math.floor(Math.random()*SIMS.length)];if(Math.random()<.1){addMsg({name:u.n,flag:u.f,vid:'sim',vdur:`0:0${Math.floor(Math.random()*8)+1}`});}else{addMsg({name:u.n,flag:u.f,text:pick(u)});}},6500);
+}
+function pick(u){return SIMMSGS[Math.floor(Math.random()*SIMMSGS.length)].replace('{f}',u.f);}
+
+// ── toast ──
+function toast(msg,type=''){const t=document.createElement('div');t.className=`toast${type?' '+type:''}`;t.textContent=msg;document.body.appendChild(t);setTimeout(()=>{t.style.transition='opacity .25s';t.style.opacity='0';setTimeout(()=>t.remove(),250);},2800);}
+</script>
+</body>
+</html>
