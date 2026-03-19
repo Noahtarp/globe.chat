@@ -7,25 +7,27 @@ export default async function handler(req, context) {
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
 
   if (!token) {
-    return new Response(JSON.stringify({ error: 'no token' }), { status: 401 });
+    return json({ error: 'no token' }, 401);
   }
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return json({ error: 'server config error' }, 500);
 
   let payload;
-  try {
-    payload = jwt.verify(token, process.env.JWT_SECRET);
-  } catch {
-    return new Response(JSON.stringify({ error: 'invalid or expired token' }), { status: 401 });
-  }
+  try { payload = jwt.verify(token, secret); }
+  catch { return json({ error: 'invalid or expired token' }, 401); }
 
   const user = await getUser(payload.sub);
-  if (!user) {
-    return new Response(JSON.stringify({ error: 'user not found' }), { status: 404 });
-  }
+  if (!user) return json({ error: 'user not found' }, 404);
 
-  return new Response(JSON.stringify({
-    ok: true,
-    user: { email: user.email, username: user.username },
-  }), { status: 200 });
+  return json({ ok: true, user: { email: user.email, username: user.username } });
+}
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 export const config = { path: '/api/me' };

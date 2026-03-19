@@ -1,64 +1,62 @@
 // netlify/functions/_db.js
-// Simple user store using Netlify Blobs (built-in KV, no external DB needed).
-// Falls back to in-memory for local dev if blobs aren't available.
+import { getStore as netlifyGetStore } from '@netlify/blobs';
 
-let blobStore = null;
-
-async function getStore() {
-  if (blobStore) return blobStore;
+function getStore() {
   try {
-    const { getStore } = await import('@netlify/blobs');
-    blobStore = getStore('users');
-    return blobStore;
+    return netlifyGetStore('gc-users');
   } catch (e) {
-    // local dev fallback — in-memory
     return null;
   }
 }
 
-// In-memory fallback for local dev
-const memStore = {};
+const mem = {};
 
 export async function getUser(email) {
-  const key = email.toLowerCase().trim();
-  const store = await getStore();
+  const key = 'u:' + email.toLowerCase().trim();
+  const store = getStore();
   if (store) {
-    try {
-      const raw = await store.get(key, { type: 'json' });
-      return raw || null;
-    } catch { return null; }
+    try { return (await store.get(key, { type: 'json' })) ?? null; }
+    catch { return null; }
   }
-  return memStore[key] || null;
+  return mem[key] ?? null;
 }
 
 export async function setUser(email, data) {
-  const key = email.toLowerCase().trim();
-  const store = await getStore();
+  const key = 'u:' + email.toLowerCase().trim();
+  const store = getStore();
   if (store) {
     await store.setJSON(key, data);
   } else {
-    memStore[key] = data;
+    mem[key] = data;
   }
 }
 
-export async function getUserByToken(token) {
-  // We store a lookup index: token -> email
-  const store = await getStore();
+export async function getUserByCode(code) {
+  const key = 'c:' + code;
+  const store = getStore();
   if (store) {
     try {
-      const email = await store.get(`tok:${token}`, { type: 'text' });
+      const email = await store.get(key, { type: 'text' });
       if (!email) return null;
-      return getUser(email);
+      return getUser(email.trim());
     } catch { return null; }
   }
-  // fallback: scan mem
-  return Object.values(memStore).find(u => u.verifyToken === token) || null;
+  // mem fallback: scan
+  const found = Object.keys(mem).find(k => k.startsWith('u:') && mem[k]?.verifyCode === code);
+  return found ? mem[found] : null;
 }
 
-export async function setTokenIndex(token, email) {
-  const store = await getStore();
+export async function setCodeIndex(code, email) {
+  const store = getStore();
   if (store) {
-    await store.set(`tok:${token}`, email.toLowerCase().trim());
+    await store.set('c:' + code, email.toLowerCase().trim());
   }
-  // mem fallback: no-op, getUserByToken scans
+  // mem: no-op, scan works
+}
+
+export async function deleteCodeIndex(code) {
+  const store = getStore();
+  if (store) {
+    try { await store.delete('c:' + code); } catch {}
+  }
 }

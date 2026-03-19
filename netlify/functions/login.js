@@ -5,42 +5,40 @@ import { getUser } from './_db.js';
 
 export default async function handler(req, context) {
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'method not allowed' }), { status: 405 });
+    return json({ error: 'method not allowed' }, 405);
   }
 
   let body;
   try { body = await req.json(); }
-  catch { return new Response(JSON.stringify({ error: 'invalid json' }), { status: 400 }); }
+  catch { return json({ error: 'invalid json' }, 400); }
 
   const { email, password } = body;
-
   if (!email || !password) {
-    return new Response(JSON.stringify({ error: 'email and password are required' }), { status: 400 });
+    return json({ error: 'email and password are required' }, 400);
   }
 
   const user = await getUser(email);
-
   if (!user) {
-    // generic message to avoid email enumeration
-    return new Response(JSON.stringify({ error: 'invalid email or password' }), { status: 401 });
+    return json({ error: 'invalid email or password' }, 401);
   }
 
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) {
-    return new Response(JSON.stringify({ error: 'invalid email or password' }), { status: 401 });
+    return json({ error: 'invalid email or password' }, 401);
   }
 
   if (!user.verified) {
-    return new Response(JSON.stringify({
-      error: 'please verify your email before logging in. check your inbox.',
+    return json({
+      error: 'please verify your email first. check your inbox for a 6-digit code.',
       unverified: true,
-    }), { status: 403 });
+      email: user.email,
+    }, 403);
   }
 
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     console.error('JWT_SECRET not set');
-    return new Response(JSON.stringify({ error: 'server configuration error' }), { status: 500 });
+    return json({ error: 'server configuration error — JWT_SECRET missing' }, 500);
   }
 
   const token = jwt.sign(
@@ -49,11 +47,14 @@ export default async function handler(req, context) {
     { expiresIn: '30d' }
   );
 
-  return new Response(JSON.stringify({
-    ok: true,
-    token,
-    user: { email: user.email, username: user.username },
-  }), { status: 200 });
+  return json({ ok: true, token, user: { email: user.email, username: user.username } });
+}
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 export const config = { path: '/api/login' };

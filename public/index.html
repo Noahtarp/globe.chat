@@ -200,6 +200,23 @@ body{font-family:'Satoshi',sans-serif;background:var(--bg2);color:var(--fg);font
 .sbtn{width:35px;height:35px;border-radius:50%;border:none;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.82rem;flex-shrink:0;transition:opacity 0.12s,box-shadow 0.12s;box-shadow:0 0 14px var(--glow);}
 .sbtn:hover{opacity:.82;box-shadow:0 0 22px var(--glow);}
 
+/* code boxes */
+.code-box{
+  width:46px;height:56px;
+  text-align:center;
+  font-size:1.5rem;font-weight:700;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  color:var(--fg);
+  font-family:'Satoshi',sans-serif;
+  outline:none;
+  transition:border-color 0.15s,box-shadow 0.15s;
+  caret-color:var(--accent);
+}
+.code-box:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(155,89,245,0.18);}
+.code-box.filled{border-color:var(--border2);}
+
 /* spinner */
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px;}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -285,13 +302,36 @@ body{font-family:'Satoshi',sans-serif;background:var(--bg2);color:var(--fg);font
   </div>
 </div>
 
-<!-- verify pending -->
+<!-- verify code screen -->
 <div id="verify-pending" class="screen">
-  <div class="vp-icon">📬</div>
-  <div class="vp-title">check your inbox!</div>
-  <div class="vp-sub">we sent a verification link to <span class="vp-email" id="vp-email">your email</span>. click it to activate your account.</div>
-  <button class="btn-sm" onclick="showResend()" style="margin-top:0.5rem">resend email</button>
-  <p class="auth-link" style="margin-top:0.5rem"><a onclick="showTab('login')">← back to login</a></p>
+  <div class="auth-card" style="text-align:center;gap:1.2rem;">
+    <div style="font-size:2.5rem;">📬</div>
+    <div>
+      <div style="font-size:1.2rem;font-weight:900;letter-spacing:-0.02em;margin-bottom:0.4rem;">check your inbox</div>
+      <div style="color:var(--fg2);font-size:0.82rem;line-height:1.6;">
+        we sent a 6-digit code to <strong id="vp-email" style="color:var(--accent2)">your email</strong>.<br>enter it below to activate your account.
+      </div>
+    </div>
+
+    <div class="auth-msg" id="verify-msg"></div>
+
+    <!-- 6 individual digit boxes -->
+    <div id="code-boxes" style="display:flex;gap:0.5rem;justify-content:center;">
+      <input class="code-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      <input class="code-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      <input class="code-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      <input class="code-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      <input class="code-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      <input class="code-box" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+    </div>
+
+    <button class="auth-btn" id="verify-btn" onclick="doVerifyCode()">verify code →</button>
+
+    <div style="display:flex;flex-direction:column;gap:0.4rem;">
+      <p class="auth-link">didn't get it? <a onclick="doResendCode()">resend code</a></p>
+      <p class="auth-link"><a onclick="showTab('login')">← back to login</a></p>
+    </div>
+  </div>
 </div>
 
 <!-- banned -->
@@ -517,6 +557,7 @@ const ROOMS=[
 
 // ── app state ──
 let currentUser=null; // {email, username, token}
+let pendingVerifyEmail='';
 let me=null,mode='video-mic',curRoom='global';
 let stream=null,rec=null,chunks=[],blobs={},blobId=0,isRec=false,camOn=true;
 let simIv=null,faceIv=null,faceTimer=null,faceLeft=0;
@@ -647,10 +688,13 @@ async function doRegister(){
       body:JSON.stringify({username:name,email,password:pass}),
     });
     const data=await res.json();
-    if(!res.ok){setAuthMsg('reg',data.error||'registration failed.');}
-    else{
+    if(!res.ok||!data.ok){
+      setAuthMsg('reg',data.error||'registration failed.');
+    } else {
+      pendingVerifyEmail=email;
       document.getElementById('vp-email').textContent=email;
       show('verify-pending');
+      initCodeBoxes();
     }
   }catch(e){setAuthMsg('reg','network error. please try again.');}
   finally{setBtnLoading('reg-btn',false,'create account →');}
@@ -671,8 +715,11 @@ async function doLogin(){
     const data=await res.json();
     if(!res.ok){
       if(data.unverified){
-        setAuthMsg('login',data.error,'err');
-        // show resend option
+        // take them straight to the code screen
+        pendingVerifyEmail=data.email||email;
+        document.getElementById('vp-email').textContent=pendingVerifyEmail;
+        show('verify-pending');
+        initCodeBoxes();
       }else{
         setAuthMsg('login',data.error||'login failed.');
       }
@@ -704,18 +751,94 @@ function logout(){
   show('auth');
 }
 
-// ── resend verification ──
-async function showResend(){
-  const email=prompt('enter your email to resend the verification link:');
-  if(!email)return;
+// ── verify code ──
+function initCodeBoxes(){
+  const boxes=[...document.querySelectorAll('.code-box')];
+  boxes.forEach((box,i)=>{
+    box.value='';
+    box.classList.remove('filled');
+    box.oninput=e=>{
+      // allow paste of full code
+      if(box.value.length>1){
+        const digits=box.value.replace(/\D/g,'').slice(0,6);
+        boxes.forEach((b,j)=>{b.value=digits[j]||'';b.classList.toggle('filled',!!digits[j]);});
+        const next=boxes.find(b=>!b.value);
+        (next||boxes[5]).focus();
+        return;
+      }
+      box.value=box.value.replace(/\D/g,'');
+      box.classList.toggle('filled',!!box.value);
+      if(box.value&&i<5) boxes[i+1].focus();
+    };
+    box.onkeydown=e=>{
+      if(e.key==='Backspace'&&!box.value&&i>0) boxes[i-1].focus();
+      if(e.key==='Enter') doVerifyCode();
+    };
+    box.onpaste=e=>{
+      e.preventDefault();
+      const pasted=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      boxes.forEach((b,j)=>{b.value=pasted[j]||'';b.classList.toggle('filled',!!pasted[j]);});
+      (boxes[Math.min(pasted.length,5)]).focus();
+    };
+  });
+  // focus first box after a short delay
+  setTimeout(()=>boxes[0].focus(),100);
+}
+
+async function doVerifyCode(){
+  const boxes=[...document.querySelectorAll('.code-box')];
+  const code=boxes.map(b=>b.value).join('');
+  if(code.length<6){
+    setVerifyMsg('please enter the full 6-digit code.','err');return;
+  }
+  if(!pendingVerifyEmail){
+    setVerifyMsg('session lost — please go back and register again.','err');return;
+  }
+  setBtnLoading('verify-btn',true,'verifying...');
+  try{
+    const res=await fetch('/api/verify-code',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:pendingVerifyEmail,code}),
+    });
+    const data=await res.json();
+    if(!res.ok||!data.ok){
+      setVerifyMsg(data.error||'invalid code.','err');
+      boxes.forEach(b=>{b.value='';b.classList.remove('filled');});
+      boxes[0].focus();
+    }else{
+      setVerifyMsg('✓ email verified! logging you in...','ok');
+      // auto-login: user already has a password saved, just show login
+      setTimeout(()=>{showTab('login');toast('account verified! please log in.','ok');},1200);
+    }
+  }catch(e){setVerifyMsg('network error. please try again.','err');}
+  finally{setBtnLoading('verify-btn',false,'verify code →');}
+}
+
+async function doResendCode(){
+  if(!pendingVerifyEmail){
+    setVerifyMsg('session lost — please register again.','err');return;
+  }
   try{
     const res=await fetch('/api/resend-verify',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email}),
+      body:JSON.stringify({email:pendingVerifyEmail}),
     });
-    const data=await res.json();
-    toast(data.message||'email sent if account exists','ok');
-  }catch{toast('network error','d');}
+    if(res.ok){
+      setVerifyMsg('new code sent! check your inbox.','ok');
+      const boxes=[...document.querySelectorAll('.code-box')];
+      boxes.forEach(b=>{b.value='';b.classList.remove('filled');});
+      boxes[0].focus();
+    }else{
+      const d=await res.json();
+      setVerifyMsg(d.error||'failed to resend.','err');
+    }
+  }catch{setVerifyMsg('network error.','err');}
+}
+
+function setVerifyMsg(msg,type){
+  const el=document.getElementById('verify-msg');
+  el.textContent=msg;
+  el.className='auth-msg '+(type||'err')+' show';
 }
 
 // ── join chat ──

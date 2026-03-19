@@ -1,43 +1,44 @@
 // netlify/functions/register.js
 import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
-import { getUser, setUser, setTokenIndex } from './_db.js';
-import { sendVerificationEmail } from './_mailer.js';
+import { getUser, setUser, setCodeIndex } from './_db.js';
+import { sendVerificationCode } from './_mailer.js';
+
+function generateCode() {
+  // 6-digit numeric code
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
 
 export default async function handler(req, context) {
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'method not allowed' }), { status: 405 });
+    return json({ error: 'method not allowed' }, 405);
   }
 
   let body;
   try { body = await req.json(); }
-  catch { return new Response(JSON.stringify({ error: 'invalid json' }), { status: 400 }); }
+  catch { return json({ error: 'invalid json' }, 400); }
 
   const { email, password, username } = body;
 
-  // validation
   if (!email || !password || !username) {
-    return new Response(JSON.stringify({ error: 'email, password and username are required' }), { status: 400 });
+    return json({ error: 'email, password and username are required' }, 400);
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return new Response(JSON.stringify({ error: 'invalid email address' }), { status: 400 });
+    return json({ error: 'invalid email address' }, 400);
   }
   if (password.length < 8) {
-    return new Response(JSON.stringify({ error: 'password must be at least 8 characters' }), { status: 400 });
+    return json({ error: 'password must be at least 8 characters' }, 400);
   }
   if (username.length < 2 || username.length > 24) {
-    return new Response(JSON.stringify({ error: 'username must be 2–24 characters' }), { status: 400 });
+    return json({ error: 'username must be 2–24 characters' }, 400);
   }
 
-  // check existing
   const existing = await getUser(email);
-  if (existing) {
-    return new Response(JSON.stringify({ error: 'an account with this email already exists' }), { status: 409 });
+  if (existing && existing.verified) {
+    return json({ error: 'an account with this email already exists' }, 409);
   }
 
-  // hash password
-  const hash = await bcrypt.hash(password, 12);
-  const verifyToken = uuidv4();
+  const hash = await bcrypt.hash(password, 10);
+  const code = generateCode();
   const now = Date.now();
 
   const user = {
@@ -45,32 +46,34 @@ export default async function handler(req, context) {
     username: username.trim(),
     password: hash,
     verified: false,
-    verifyToken,
-    verifyTokenExpires: now + 24 * 60 * 60 * 1000, // 24h
+    verifyCode: code,
+    verifyCodeExpires: now + 15 * 60 * 1000, // 15 minutes
     createdAt: now,
   };
 
   await setUser(email, user);
-  await setTokenIndex(verifyToken, email);
+  await setCodeIndex(code, email);
 
-  // send verification email
   try {
-    await sendVerificationEmail(user.email, verifyToken);
+    await sendVerificationCode(user.email, code);
   } catch (err) {
-    console.error('email send failed:', err);
-    // Don't fail registration if email fails — user can request resend
-    return new Response(JSON.stringify({
-      ok: true,
+    console.error('[register] email failed:', err.message);
+    // Return the actual error so it's visible during setup
+    return json({
+      ok: false,
       emailSent: false,
-      message: 'account created but verification email failed to send. check your smtp settings.',
-    }), { status: 201 });
+      error: `account saved but email failed: ${err.message}`,
+    }, 500);
   }
 
-  return new Response(JSON.stringify({
-    ok: true,
-    emailSent: true,
-    message: 'account created! check your email to verify your account.',
-  }), { status: 201 });
+  return json({ ok: true, emailSent: true }, 201);
+}
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 export const config = { path: '/api/register' };
